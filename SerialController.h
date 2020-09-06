@@ -4,28 +4,37 @@
 
 const int kNumPresets = 1;
 
-enum EParams
-{
-  kParamGain = 0,
-  kNumParams
+enum EParams {
+    kParamGain = 0,
+    kNumParams
 };
 
-enum EControlTags
-{
-  kNumCtrlTags
+enum EControlTags {
+    kNumCtrlTags
 };
 
 using namespace iplug;
 using namespace igraphics;
 
-class SerialController final : public Plugin
-{
+class SerialController final : public Plugin {
+private:
+    HANDLE m_Comm;
+
+    bool m_SerialWaiting = false;
+    OVERLAPPED m_OverlappedReader = { 0 };
+
+    void InitSerial();
+    void ReadSerial();
+
 public:
-  SerialController(const InstanceInfo& info);
+    SerialController(const InstanceInfo& info);
+
+    void OnIdle() override;
+    void OnUIOpen() override;
 
 #if IPLUG_DSP // http://bit.ly/2S64BDd
 public:
-  void ProcessBlock(sample** inputs, sample** outputs, int nFrames) override;
-  void ProcessMidiMsg(const IMidiMsg& msg) override;
+    void ProcessBlock(sample** inputs, sample** outputs, int nFrames) override;
+    void ProcessMidiMsg(const IMidiMsg& msg) override;
 #endif
 };
