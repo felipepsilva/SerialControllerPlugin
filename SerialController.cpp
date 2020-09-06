@@ -91,7 +91,7 @@ void SerialController::OnIdle()
 
 void SerialController::InitSerial()
 {
-    m_Comm = CreateFile(
+    m_Comm = CreateFileA(
         "COM8",
         GENERIC_READ,
         0,
@@ -101,14 +101,14 @@ void SerialController::InitSerial()
         0);
 
     if (m_Comm == INVALID_HANDLE_VALUE) {
-        MessageBox(NULL, "Couldn't open port!", "ERROR", MB_ICONERROR | MB_OK);
+        MessageBoxA(NULL, "Couldn't open port!", "ERROR", MB_ICONERROR | MB_OK);
         return;
     }
 
     DCB dcb = { 0 };
     dcb.DCBlength = sizeof(DCB);
     if (GetCommState(m_Comm, &dcb) == false) {
-        MessageBox(NULL, "Couldn't get port state!", "ERROR", MB_ICONERROR | MB_OK);
+        MessageBoxA(NULL, "Couldn't get port state!", "ERROR", MB_ICONERROR | MB_OK);
         return;
     }
 
@@ -118,7 +118,7 @@ void SerialController::InitSerial()
     dcb.StopBits = ONESTOPBIT;
 
     if (SetCommState(m_Comm, &dcb) == false) {
-        MessageBox(NULL, "Couldn't set port state!", "ERROR", MB_ICONERROR | MB_OK);
+        MessageBoxA(NULL, "Couldn't set port state!", "ERROR", MB_ICONERROR | MB_OK);
         return;
     }
 
@@ -132,37 +132,27 @@ void SerialController::ReadSerial()
         DWORD bytesRead;
 
         auto handleReading = [&]() {
+            IMidiMsg msg;
             if (bytesRead == 1) {
-                switch (buffer[0]) {
-                case '0':
-                    OutputDebugString("Left!");
-                    break;
-                case '1':
-                    OutputDebugString("Center!");
-                    break;
-                case '2':
-                    OutputDebugString("Right!");
-                    break;
-                default:
-                    break;
-                }
+                msg.MakeControlChangeMsg(IMidiMsg::EControlChangeMsg(16 + buffer[0]), 1, 0, 0);
+                SendMidiMsg(msg);
             }
         };
 
-        if (m_OverlappedReader.hEvent == NULL) {
-            m_OverlappedReader.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+        if (m_OverlappedReading.hEvent == NULL) {
+            m_OverlappedReading.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
         }
 
-        if (m_OverlappedReader.hEvent == NULL) {
+        if (m_OverlappedReading.hEvent == NULL) {
             OutputDebugString("Failed to create overlapped event!");
             return;
         }
 
         if (m_SerialWaiting) {
-            DWORD res = WaitForSingleObject(m_OverlappedReader.hEvent, 10); // 10 ms timeout
+            DWORD res = WaitForSingleObject(m_OverlappedReading.hEvent, 35); // 35 ms timeout
             switch (res) {
             case WAIT_OBJECT_0:
-                if (!GetOverlappedResult(m_Comm, &m_OverlappedReader, &bytesRead, FALSE)) {
+                if (!GetOverlappedResult(m_Comm, &m_OverlappedReading, &bytesRead, FALSE)) {
                     OutputDebugString("Failed to get overlapped result!");
                 } else {
                     handleReading();
@@ -177,7 +167,7 @@ void SerialController::ReadSerial()
                 break;
             }
         } else {
-            if (!ReadFile(m_Comm, buffer, 1, &bytesRead, &m_OverlappedReader)) {
+            if (!ReadFile(m_Comm, buffer, 1, &bytesRead, &m_OverlappedReading)) {
                 if (GetLastError() != ERROR_IO_PENDING) {
                     OutputDebugString("Error reading from port!");
                 } else {

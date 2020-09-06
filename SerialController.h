@@ -21,7 +21,7 @@ private:
     HANDLE m_Comm;
 
     bool m_SerialWaiting = false;
-    OVERLAPPED m_OverlappedReader = { 0 };
+    OVERLAPPED m_OverlappedReading = { 0 };
 
     void InitSerial();
     void ReadSerial();
